@@ -70,7 +70,7 @@ class VeryChord(optx.AbstractRootFinder):
     atol: float
     norm: Callable[[PyTree], Scalar] = optx.max_norm
     kappa: float = 1e-2
-    linear_solver: lx.AbstractLinearSolver = lx.AutoLinearSolver(well_posed=None)
+    linear_solver: lx.AbstractLinearSolver = lx.GMRES(atol=1e-6, rtol=1e-6, restart=625)
 
     def init(
         self,
@@ -85,8 +85,8 @@ class VeryChord(optx.AbstractRootFinder):
         try:
             init_state = options["init_state"]
         except KeyError:
-            jac = lx.JacobianLinearOperator(_NoAux(fn), y, args, tags=tags)
-            jac = lx.linearise(jac)
+            jac = lx.JacobianLinearOperator(_NoAux(fn), y, args, tags=tags, jac="fwd")
+            #jac = lx.linearise(jac)
             init_later_state = self.linear_solver.init(jac, options={})
             dynamic, static = eqx.partition(init_later_state, eqx.is_array)
             dynamic = lax.stop_gradient(dynamic)
@@ -121,7 +121,7 @@ class VeryChord(optx.AbstractRootFinder):
         del options, tags
         fx, aux = fn(y, args)
         jac, linear_state = state.linear_state
-        linear_state = lax.stop_gradient(linear_state)
+        # linear_state = lax.stop_gradient(linear_state)
         sol = lx.linear_solve(
             jac, fx, self.linear_solver, state=linear_state, throw=False
         )
